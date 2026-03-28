@@ -24,7 +24,7 @@ function onPywebviewReady() {
 
     //测试wm是否暴露
     console.log("wm:",window.wm);
-    sendLog("wm:",window.wm);
+    sendLog("wm:"+toString(window.wm));
 
     //加载完成时发送解析指令
     window.pywebview.api.parseIndexJS();

@@ -7,7 +7,7 @@ import shell
 def on_loaded():
     global window
     api.set_window(window)
-    shell.shell.print("窗口加载完成，window 引用已设置")
+    shell.shell.print("window:loaded")
 
 # 主流程
 def main():

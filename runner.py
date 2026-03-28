@@ -35,12 +35,11 @@ class Api:
     def askUser(self):
         return askUser()
 
-indexJS = rewrite.indexJS
 wmToken = ""
 productNumber = ""
 def getYDProductNumber():
     global productNumber
-    productNumber = tools.getStringBetween(indexJS, "productNumber:", ",")
+    productNumber = tools.getStringBetween(rewrite.indexJS, "productNumber:", ",")
     if productNumber:
         productNumber = productNumber.strip().strip('\'"')
         shell.shell.print("\033[32m[INFO]\033[0m","productNumber:",productNumber,"\n")
@@ -50,7 +49,7 @@ def getYDProductNumber():
 
 def getTDToken():
     global wmToken
-    wmToken = tools.getStringBetween(indexJS, "getToken(", ",")
+    wmToken = tools.getStringBetween(rewrite.indexJS, "getToken(", ",")
     if wmToken:
         wmToken = wmToken.strip().strip('\'"')
         shell.shell.print("\033[32m[INFO]\033[0m","wmToken:",wmToken,"\n")
