@@ -22,6 +22,10 @@ function onPywebviewReady() {
     //发送xhr日志到pywebview日志
     sendOldXHRLog();
 
+    //测试wm是否暴露
+    console.log("wm:",window.wm);
+    sendLog("wm:",window.wm);
+
     //加载完成时发送解析指令
     window.pywebview.api.parseIndexJS();
 }

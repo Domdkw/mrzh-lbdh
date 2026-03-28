@@ -6,9 +6,7 @@ from bs4 import BeautifulSoup
 import shell
 
 
-
 xhrLog=[]
-indexJS = ""
 window = None
 
 class Api:
@@ -27,9 +25,9 @@ class Api:
         # 打印到 python 控制台
     
     def parseIndexJS(self):
-        getIndexJS()
-            #getYDProductNumber()
-            #getTDToken()
+        getYDProductNumber()
+        getTDToken()
+        checkYDStatus()
     
     def getServerList(self):
         return serverList()
@@ -37,7 +35,7 @@ class Api:
     def askUser(self):
         return askUser()
 
-
+indexJS = rewrite.indexJS
 wmToken = ""
 productNumber = ""
 def getYDProductNumber():
@@ -68,30 +66,6 @@ def checkYDStatus():
         shell.shell.print("\033[32m[INFO]\033[0m","productNumber 和 wmToken 检查成功，Next...")
         window.evaluate_js(f"setYD('{productNumber}','{wmToken}');check_QueryRole()")
         return True
-
-def getIndexJS():
-    html = rewrite.original_html
-    if not html:
-        shell.shell.print("html 为空")
-        return ""
-    #查找 script 标签
-    soup = BeautifulSoup(html, "html.parser")
-    scripts = soup.find_all("script")
-    if scripts:
-        for script in scripts:
-            if "index" in str(script) and "mrzh.res.netease.com" in str(script):
-                indexJSURL = script.get("src", "")
-                if not indexJSURL.startswith("http"):
-                    indexJSURL = "https://mrzh.res.netease.com" + tools.getStringBetween(html, "mrzh.res.netease.com", ".js") + ".js"
-                shell.shell.print("\033[32m[INFO]\033[0m","找到 mrzh.res.netease.com index.js:",indexJSURL)
-
-                global indexJS
-                indexJS = requests.get(indexJSURL).text.strip()
-
-                getYDProductNumber()
-                getTDToken()
-                checkYDStatus()
-                break
 
 
 _serverListCache = []
