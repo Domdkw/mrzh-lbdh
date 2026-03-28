@@ -44,7 +44,7 @@ def getYDProductNumber():
     global productNumber
     productNumber = tools.getStringBetween(indexJS, "productNumber:", ",")
     if productNumber:
-        productNumber = productNumber.strip('\'"')
+        productNumber = productNumber.strip().strip('\'"')
         shell.shell.print("\033[32m[INFO]\033[0m","productNumber:",productNumber,"\n")
     else:
         productNumber = ""
@@ -54,7 +54,7 @@ def getTDToken():
     global wmToken
     wmToken = tools.getStringBetween(indexJS, "getToken(", ",")
     if wmToken:
-        wmToken = wmToken.strip('\'"')
+        wmToken = wmToken.strip().strip('\'"')
         shell.shell.print("\033[32m[INFO]\033[0m","wmToken:",wmToken,"\n")
     else:
         wmToken = ""
