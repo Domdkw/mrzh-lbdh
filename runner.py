@@ -94,35 +94,51 @@ def getIndexJS():
                 break
 
 
+_serverListCache = []
+
 def serverList():
-    stype = input("请输入服务器类型; 1：官服(official) 2：渠道服(channel)：")
+    """
+    获取服务器列表
+    返回服务器列表数据供前端使用
+    """
+    global _serverListCache
+    stype = input("请输入服务器类型; 1：官服(official)  2：渠道服(channel) ：")
     if stype == "1":
         stype = "official"
     elif stype == "2":
         stype = "channel"
     else:
         print("输入错误")
-        return
+        return None
     res = requests.get(f"https://gameserver.webcgi.163.com/game_servers_info?game=g66&type={stype}")
     if res.status_code == 200:
-        serverList = json.loads(res.text)["servers"][0]["data"]
-        serverList = tools.quick_sort(serverList, key=lambda x: x["py"][0][0])
+        serverData = json.loads(res.text)["servers"][0]["data"]
+        serverData = tools.quick_sort(serverData, key=lambda x: x["py"][0][0])
+        _serverListCache = serverData
         
         print("----服务器列表---\n")
-        for server in serverList:
+        for server in serverData:
             print(server["id"],": ",server["name"]," ",server["py"][0][0])
-            serverID = askServerID()
-
+        askServerID()
+        return serverData
     else:
         print("获取服务器列表失败")
+        return None
 
 def askServerID():
+    """
+    询问用户服务器ID
+    返回用户输入的服务器ID
+    """
+    global _serverListCache
     a = input("请输入服务器ID：")
-    if a not in [server["id"] for server in serverList]:
+    validIds = [str(server["id"]) for server in _serverListCache]
+    if a not in validIds:
         print("服务器ID不存在")
         return askServerID()
     else:
-        print("服务器ID:",serverID)
+        print("服务器ID:", a)
+        window.evaluate_js(f"setServerID('{a}')")
         return a
 
 def askUser():

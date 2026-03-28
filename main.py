@@ -37,7 +37,7 @@ def main():
     window.events.loaded += on_loaded
 
     webview.start(
-        debug=False,#True
+        debug=True,#False
         private_mode=True,
         user_agent='Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/146.0.0.0',
     )

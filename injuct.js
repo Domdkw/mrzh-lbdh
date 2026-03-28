@@ -7,6 +7,7 @@ let xhrLogCache = [];
 //先记录，后发送到pywebview日志，解决pywebview对象未初始化问题
 let productNumber = "";
 let wmToken = "";
+let serverID = "";
 
 
 
@@ -134,11 +135,19 @@ function setYD(p,w){
     wmToken = w;
     console.log("setYD",p,w);
 }
-function check_QueryRole(){
+function setServerID(t){
+    serverID = t;
+    console.log("setServerID",t);
+}
+/**
+ * 查询角色信息
+ * 异步获取服务器列表和用户ID
+ */
+async function check_QueryRole(){
     //获取服务器列表
-    serverList = window.pywebview.api.getServerList();
+    let serverList = await window.pywebview.api.getServerList();
     console.log(serverList);
     //获取用户ID
-    let userID = window.pywebview.api.askUser();
+    let userID = await window.pywebview.api.askUser();
     console.log(userID);
 }
