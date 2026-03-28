@@ -2,6 +2,7 @@ import requests
 import os
 import tempfile
 from bs4 import BeautifulSoup
+import shell
 
 #获取源码
 original_html = ""
@@ -11,17 +12,17 @@ def get_html():
     global original_html
     original_html = request_html()
     if not original_html:
-        print("获取index.html失败")
+        shell.shell.print("获取index.html失败")
         return ""
     global rewritten_html
     rewritten_html = rewrite_html(original_html)
     if not rewritten_html:
-        print("重写index.html失败")
+        shell.shell.print("重写index.html失败")
         return ""
     global temp_file_path   
     temp_file_path = save_temp_html(rewritten_html)
     if not temp_file_path:
-        print("保存index.html失败")
+        shell.shell.print("保存index.html失败")
         return ""
     return temp_file_path
 
@@ -35,10 +36,10 @@ def request_html():
     response = requests.get('https://mrzh.163.com/m/lbdh/')
     response.encoding = 'utf-8'
     if response.status_code == 200:
-        print('获取index.html成功')
+        shell.shell.print('获取index.html成功')
         return response.text
     else:
-        print('获取index.html失败')
+        shell.shell.print('获取index.html失败')
         return '<html><body>获取index.html失败</body></html>'
 
 
@@ -56,7 +57,7 @@ def save_temp_html(html_content):
     with open(temp_file_path, 'w', encoding='utf-8') as f:
         f.write(html_content)
     
-    print(f'HTML已保存到临时文件: {temp_file_path}')
+    shell.shell.print(f'HTML已保存到临时文件: {temp_file_path}')
     return temp_file_path
 
 
@@ -74,5 +75,6 @@ def rewrite_html(html_content):
     with open('injuct.js', 'r', encoding='utf-8') as f:
         script.string = f.read()
     soup.head.append(script)
+    shell.shell.print("注入inject.js成功")
 
     return str(soup)

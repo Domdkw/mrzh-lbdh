@@ -5,6 +5,9 @@ let pageOnLoaded = false;
 // XHR 日志记录
 let xhrLogCache = [];
 //先记录，后发送到pywebview日志，解决pywebview对象未初始化问题
+let productNumber = "";
+let wmToken = "";
+
 
 
 /**
@@ -18,7 +21,7 @@ function onPywebviewReady() {
     //发送xhr日志到pywebview日志
     sendOldXHRLog();
 
-    //发送index.js到pywebview
+    //加载完成时发送解析指令
     window.pywebview.api.parseIndexJS();
 }
 
@@ -126,3 +129,16 @@ overrideJQueryAjax();
 
 
 
+function setYD(p,w){
+    productNumber = p;
+    wmToken = w;
+    console.log("setYD",p,w);
+}
+function check_QueryRole(){
+    //获取服务器列表
+    serverList = window.pywebview.api.getServerList();
+    console.log(serverList);
+    //获取用户ID
+    let userID = window.pywebview.api.askUser();
+    console.log(userID);
+}
