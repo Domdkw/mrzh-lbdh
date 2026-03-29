@@ -14,6 +14,7 @@ user = ""
 serverID = ""
 anticheat_token = ""
 anticheat_status = False
+user_data = {}
 
 class Api:
     def __init__(self, window_ref=None):
@@ -82,6 +83,10 @@ def checkYDStatus():
         # 查询角色信息
         check_QueryRole()
 
+        #兑换
+        exchange()
+
+
 
 
 
@@ -135,11 +140,10 @@ def askUser():
     global user
     user = input("请输入用户ID：")
     shell.shell.print("\033[32m[INFO]\033[0m","用户ID:", user,"\n")
-    
-def check_QueryRole():
+
+def awaitAnticheat():
     """
-    查询角色信息
-    异步获取服务器列表和用户ID
+    等待 anticheat_status 为 True
     """
     window.evaluate_js(f"fetchWmAnticheat()")
     n = 0
@@ -155,13 +159,96 @@ def check_QueryRole():
         shell.shell.print("\033[31m[ERROR]\033[0m","未找到 anticheat_token")
         return
     shell.shell.print("\033[32m[INFO]\033[0m 花费", n, "秒")
+
+    return anticheat_token, anticheat_status
+
+
+def check_QueryRole():
+    """
+    查询角色信息
+    异步获取服务器列表和用户ID
+    """
+    anticheat_token, anticheat_status = awaitAnticheat()
+    if not anticheat_token or not anticheat_status:
+        return
     
     # 查询角色信息
     shell.shell.print("\033[32m[INFO]\033[0m","check_QueryRole wmAnticheat:",anticheat_token if anticheat_status else "未设置","\n")
-    res = requests.get(f"https://game-exchange.webapp.163.com/g66/query_role?uid={user}&server_id={serverID}&anticheat={anticheat_token}")
+    u = f"https://game-exchange.webapp.163.com/g66/query_role?uid={user}&server_id={serverID}&anticheat={anticheat_token}"
+    shell.shell.print("\033[32m[INFO]\033[0m","查询URL:", u,"\n")
+
+    res = requests.get(u)
     if res.status_code == 200:
         shell.shell.print("\033[32m[INFO]\033[0m","角色信息:", res.text,"\n")
         print("查询成功")
+        global user_data
+        user_data = json.loads(res.text)["data"][0]
+
     else:
         shell.shell.print("\033[31m[ERROR]\033[0m","查询角色信息失败")
+
+def exchange():
+    """
+    批量兑换礼包码
+    从 sn.txt 读取礼包码列表，逐个进行兑换
+    每个请求都需要获取一次 anticheat_token
+    """
+    global user_data
+    if not user_data:
+        shell.shell.print("\033[31m[ERROR]\033[0m","用户数据为空，请先查询角色信息\n")
+        return
+    
+    role_id = user_data.get("role_id")
+    if not role_id:
+        shell.shell.print("\033[31m[ERROR]\033[0m","未找到 role_id\n")
+        return
+    
+    # 读取礼包码列表
+    try:
+        with open('sn.txt', 'r', encoding='utf-8') as f:
+            sn_list = [line.strip() for line in f.readlines() if line.strip()]
+    except FileNotFoundError:
+        shell.shell.print("\033[31m[ERROR]\033[0m","未找到 sn.txt 文件\n")
+        return
+    
+    shell.shell.print("\033[32m[INFO]\033[0m","开始批量兑换，共", len(sn_list), "个礼包码\n")
+    
+    success_count = 0
+    fail_count = 0
+    
+    for i, sn in enumerate(sn_list, 1):
+        shell.shell.print("\033[36m[INFO]\033[0m", f"正在兑换第 {i}/{len(sn_list)} 个礼包码：{sn}\n")
+        
+        # 每次请求都获取新的 anticheat_token
+        anticheat_token, anticheat_status = awaitAnticheat()
+        if not anticheat_token or not anticheat_status:
+            shell.shell.print("\033[31m[ERROR]\033[0m", f"获取 anticheat_token 失败，跳过礼包码：{sn}\n")
+            fail_count += 1
+            continue
+        
+        # 兑换礼包码
+        exchange_url = f"https://game-exchange.webapp.163.com/g66/exchange?uid={role_id}&server_id={serverID}&sn={sn}&anticheat={anticheat_token}"
+        shell.shell.print("\033[32m[INFO]\033[0m","兑换 URL:", exchange_url,"\n")
+        
+        res = requests.get(exchange_url)
+        if res.status_code == 200:
+            result = json.loads(res.text)
+            shell.shell.print("\033[32m[INFO]\033[0m","兑换结果:", res.text,"\n")
+            
+            # 判断兑换是否成功
+            if result.get("code") == 200 or result.get("success"):
+                shell.shell.print("\033[32m[SUCCESS]\033[0m", f"礼包码 {sn} 兑换成功\n")
+                success_count += 1
+            else:
+                msg = result.get("msg", "")
+                shell.shell.print("\033[31m[FAIL]\033[0m", f"礼包码 {sn} 兑换失败：{msg}\n")
+                fail_count += 1
+        else:
+            shell.shell.print("\033[31m[ERROR]\033[0m", f"礼包码 {sn} 请求失败，状态码：{res.status_code}\n")
+            fail_count += 1
+        
+        # 添加延迟，避免请求过快
+        time.sleep(5)
+    
+    shell.shell.print("\033[32m[SUMMARY]\033[0m", f"兑换完成，成功：{success_count}, 失败：{fail_count}\n")
        
