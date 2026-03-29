@@ -1,13 +1,19 @@
 import requests
-import tools
 import json
-import rewrite
+import time
 from bs4 import BeautifulSoup
+
 import shell
+import rewrite
+import tools
 
 
 xhrLog=[]
 window = None
+user = ""
+serverID = ""
+anticheat_token = ""
+anticheat_status = False
 
 class Api:
     def __init__(self, window_ref=None):
@@ -29,11 +35,14 @@ class Api:
         getTDToken()
         checkYDStatus()
     
-    def getServerList(self):
-        return serverList()
+    def setAnticheat(self,status,token=None):
+        global anticheat_status
+        global anticheat_token
+        anticheat_status = status
+        anticheat_token = token
 
-    def askUser(self):
-        return askUser()
+
+
 
 wmToken = ""
 productNumber = ""
@@ -60,16 +69,25 @@ def getTDToken():
 def checkYDStatus():
     if not productNumber or not wmToken:
         shell.shell.print("\033[31m[ERROR]\033[0m","未找到 productNumber 或 wmToken")
-        return False
     else:
         shell.shell.print("\033[32m[INFO]\033[0m","productNumber 和 wmToken 检查成功，Next...")
-        window.evaluate_js(f"setYD('{productNumber}','{wmToken}');check_QueryRole()")
-        return True
+        window.evaluate_js(f"setYD('{productNumber}','{wmToken}');")
+
+        # 获取服务器列表, 并询问用户服务器ID
+        serverID()
+        # 询问用户用户ID
+        askUser()
+        shell.shell.print("\033[32m[INFO]\033[0m","用户ID:",user,"\n")
+
+        # 查询角色信息
+        check_QueryRole()
+
+
 
 
 _serverListCache = []
 
-def serverList():
+def serverID():
     """
     获取服务器列表
     返回服务器列表数据供前端使用
@@ -82,7 +100,6 @@ def serverList():
         stype = "channel"
     else:
         print("输入错误")
-        return None
     res = requests.get(f"https://gameserver.webcgi.163.com/game_servers_info?game=g66&type={stype}")
     if res.status_code == 200:
         serverData = json.loads(res.text)["servers"][0]["data"]
@@ -92,11 +109,10 @@ def serverList():
         print("----服务器列表---\n")
         for server in serverData:
             print(server["id"],": ",server["name"]," ",server["py"][0][0])
-        askServerID()
-        return serverData
+        
+        return askServerID()
     else:
         print("获取服务器列表失败")
-        return None
 
 def askServerID():
     """
@@ -111,9 +127,41 @@ def askServerID():
         return askServerID()
     else:
         print("服务器ID:", a)
-        window.evaluate_js(f"setServerID('{a}')")
-        return a
+        global serverID
+        serverID = a
+        shell.shell.print("\033[32m[INFO]\033[0m","服务器ID:", a,"\n")
 
 def askUser():
-    return input("请输入用户ID：")
+    global user
+    user = input("请输入用户ID：")
+    shell.shell.print("\033[32m[INFO]\033[0m","用户ID:", user,"\n")
     
+def check_QueryRole():
+    """
+    查询角色信息
+    异步获取服务器列表和用户ID
+    """
+    window.evaluate_js(f"fetchWmAnticheat()")
+    n = 0
+    # 等待 anticheat_status 为 True
+    shell.shell.print("\033[32m[INFO]\033[0m","等待 anticheat_status 返回为 True")
+    while not anticheat_status and n < 10:
+        time.sleep(1)
+        n += 1
+    if n >= 10:
+        shell.shell.print("\033[31m[ERROR]\033[0m","等待 anticheat_status 返回为 True 超时")
+        return
+    if not anticheat_token:
+        shell.shell.print("\033[31m[ERROR]\033[0m","未找到 anticheat_token")
+        return
+    shell.shell.print("\033[32m[INFO]\033[0m 花费", n, "秒")
+    
+    # 查询角色信息
+    shell.shell.print("\033[32m[INFO]\033[0m","check_QueryRole wmAnticheat:",anticheat_token if anticheat_status else "未设置","\n")
+    res = requests.get(f"https://game-exchange.webapp.163.com/g66/query_role?uid={user}&server_id={serverID}&anticheat={anticheat_token}")
+    if res.status_code == 200:
+        shell.shell.print("\033[32m[INFO]\033[0m","角色信息:", res.text,"\n")
+        print("查询成功")
+    else:
+        shell.shell.print("\033[31m[ERROR]\033[0m","查询角色信息失败")
+       

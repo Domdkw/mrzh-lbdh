@@ -132,6 +132,19 @@ function overrideJQueryAjax() {
 
 overrideJQueryAjax();
 
+function tocdb(str) {//全角转半角 源代码
+var tmp = "";
+for (var i = 0; i < str.length; i++) {
+    if (str.charCodeAt(i) > 65248 && str.charCodeAt(i) < 65375) {
+    tmp += String.fromCharCode(str.charCodeAt(i) - 65248);
+    }
+    else {
+    tmp += String.fromCharCode(str.charCodeAt(i));
+    }
+}
+console.log(tmp);
+return tmp;
+}
 
 
 function setYD(p,w){
@@ -139,19 +152,26 @@ function setYD(p,w){
     wmToken = w;
     console.log("setYD",p,w);
 }
-function setServerID(t){
-    serverID = t;
-    console.log("setServerID",t);
+
+let currentToken = null;
+
+function fetchWmAnticheat(){
+    if (!window.wm) {
+        console.error("wm 未暴露");
+        sendLog("\x1b[31m[ERROR]\x1b[0m [fetchWmAnticheat] wm 未暴露");
+        return;
+    }
+    if (!wmToken) {
+        console.error("wmToken 未设置");
+        sendLog("\x1b[31m[ERROR]\x1b[0m [fetchWmAnticheat] wmToken 未设置");
+        return;
+    }
+    wm.getToken(wmToken,function(token){
+        const a = "[fetchWmAnticheat] getToken token:"+token;
+        console.log(a);
+        sendLog("\x1b[32m[INFO]\x1b[0m "+a);
+        currentToken = token;
+        window.pywebview.api.setAnticheat(true,token);
+    });
 }
-/**
- * 查询角色信息
- * 异步获取服务器列表和用户ID
- */
-async function check_QueryRole(){
-    //获取服务器列表
-    let serverList = await window.pywebview.api.getServerList();
-    console.log(serverList);
-    //获取用户ID
-    let userID = await window.pywebview.api.askUser();
-    console.log(userID);
-}
+

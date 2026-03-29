@@ -2,6 +2,8 @@ import requests
 import os
 import tempfile
 from bs4 import BeautifulSoup
+import re
+
 import shell
 import tools
 
@@ -142,8 +144,22 @@ def expose_wm(html):
     shell.shell.print("暴露watchman")
     js = indexJS
 
-    js = js.replace("wm = instance;", "window.wm = wm = instance;")
-    
+    onload_idx = js.find("onload",js.find("chman"))
+    if onload_idx == -1:
+        shell.shell.print("未找到onload")
+        return ""
+    l_idx = js.find("{",onload_idx)
+    if l_idx == -1:
+        shell.shell.print("未找到{")
+        return ""
+    r_idx = js.find("=",l_idx)
+    if r_idx == -1:
+        shell.shell.print("未找到=")
+        return ""
+    between = js[l_idx+1:r_idx].strip()
+    wm_str = "window.wm = " + between
+    js = js[:l_idx+1] + wm_str + js[r_idx:]
+
     if not html:
         shell.shell.print("html 为空")
         return ""
