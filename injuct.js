@@ -6,7 +6,7 @@ let pageOnLoaded = false;
 let xhrLogCache = [];
 //先记录，后发送到pywebview日志，解决pywebview对象未初始化问题
 let productNumber = "";
-let wmToken = "";
+let wmID = "";
 let serverID = "";
 
 
@@ -149,29 +149,132 @@ return tmp;
 
 function setYD(p,w){
     productNumber = p;
-    wmToken = w;
+    wmID = w;
     console.log("setYD",p,w);
 }
 
 let currentToken = null;
 
-function fetchWmAnticheat(){
+/**
+ * 获取wmID后重置watchman计数器，避免服务器风控
+ */
+let wmAnticheatCount = 0;
+
+/**
+ * wm重置状态标志
+ * true: 正在重置中，禁止获取token
+ * false: 正常状态
+ */
+let isWmResetting = false;
+
+/**
+ * 清除所有cookies
+ */
+function clearAllCookies() {
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i];
+        const eqPos = cookie.indexOf("=");
+        const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + window.location.hostname;
+        if (window.location.hostname.indexOf('.') > -1) {
+            const domain = '.' + window.location.hostname.split('.').slice(-2).join('.');
+            document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + domain;
+        }
+    }
+    sendLog("\x1b[32m[INFO]\x1b[0m [clearAllCookies] 已清除所有cookies");
+}
+
+/**
+ * 重置Watchman环境
+ * 使用Promise封装异步操作，确保stop和start按顺序完成
+ * @returns {Promise<boolean>} 重置是否成功
+ */
+function resetWmEnvironment() {
+    return new Promise((resolve) => {
+        if (isWmResetting) {
+            sendLog("\x1b[33m[WARN]\x1b[0m [resetWmEnvironment] 正在重置中，请稍候...");
+            resolve(false);
+            return;
+        }
+        
+        if (!window.wm) {
+            console.error("[resetWmEnvironment] wm 未暴露");
+            sendLog("\x1b[31m[ERROR]\x1b[0m [resetWmEnvironment] wm 未暴露");
+            resolve(false);
+            return;
+        }
+        if (!wmID) {
+            console.error("[resetWmEnvironment] wmID 未设置");
+            sendLog("\x1b[31m[ERROR]\x1b[0m [resetWmEnvironment] wmID 未设置");
+            resolve(false);
+            return;
+        }
+
+        isWmResetting = true;
+        wmAnticheatCount = 0;
+        currentToken = null;
+        
+        sendLog("\x1b[36m[INFO]\x1b[0m [resetWmEnvironment] 开始重置Watchman...");
+        
+        window.wm.stop(function() {
+            console.log("[resetWmEnvironment] wm stopped");
+            sendLog("\x1b[32m[INFO]\x1b[0m [resetWmEnvironment] wm stopped");
+            
+            clearAllCookies();
+            localStorage.clear();
+            sessionStorage.clear();
+            sendLog("\x1b[32m[INFO]\x1b[0m [resetWmEnvironment] 已清除cookie,localStorage,sessionStorage");
+            
+            window.wm.start(function() {
+                console.log("[resetWmEnvironment] wm started");
+                sendLog("\x1b[32m[INFO]\x1b[0m [resetWmEnvironment] wm started");
+                isWmResetting = false;
+                sendLog("\x1b[32m[INFO]\x1b[0m [resetWmEnvironment] 重置Watchman完成");
+                resolve(true);
+            });
+        });
+    });
+}
+
+/**
+ * 获取Watchman反作弊Token
+ * 超过5次自动重置Watchman环境
+ */
+async function fetchWmAnticheat() {
+    if (isWmResetting) {
+        sendLog("\x1b[33m[WARN]\x1b[0m [fetchWmAnticheat] Watchman正在重置中，跳过本次请求");
+        return;
+    }
+    
+    if (wmAnticheatCount >= 5) {
+        sendLog("\x1b[33m[WARN]\x1b[0m [fetchWmAnticheat] 达到5次限制，开始重置Watchman...");
+        const resetSuccess = await resetWmEnvironment();
+        if (!resetSuccess) {
+            sendLog("\x1b[31m[ERROR]\x1b[0m [fetchWmAnticheat] Watchman重置失败");
+            return;
+        }
+    }
+    
     if (!window.wm) {
-        console.error("wm 未暴露");
+        console.error("[fetchWmAnticheat] wm 未暴露");
         sendLog("\x1b[31m[ERROR]\x1b[0m [fetchWmAnticheat] wm 未暴露");
         return;
     }
-    if (!wmToken) {
-        console.error("wmToken 未设置");
-        sendLog("\x1b[31m[ERROR]\x1b[0m [fetchWmAnticheat] wmToken 未设置");
+    if (!wmID) {
+        console.error("[fetchWmAnticheat] wmID 未设置");
+        sendLog("\x1b[31m[ERROR]\x1b[0m [fetchWmAnticheat] wmID 未设置");
         return;
     }
-    wm.getToken(wmToken,function(token){
-        const a = "[fetchWmAnticheat] getToken token:"+token;
+    
+    wm.getToken(wmID, function(token) {
+        const a = "[fetchWmAnticheat] getToken token:" + token + "  c:" + wmAnticheatCount;
         console.log(a);
-        sendLog("\x1b[32m[INFO]\x1b[0m "+a);
+        sendLog("\x1b[32m[INFO]\x1b[0m " + a);
         currentToken = token;
-        window.pywebview.api.setAnticheat(true,token);
+        wmAnticheatCount += 1;
+        window.pywebview.api.setAnticheat(true, token);
     });
 }
 

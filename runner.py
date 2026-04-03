@@ -45,7 +45,7 @@ class Api:
 
 
 
-wmToken = ""
+wmID = ""
 productNumber = ""
 def getYDProductNumber():
     global productNumber
@@ -58,21 +58,21 @@ def getYDProductNumber():
         shell.shell.print("\033[31m[ERROR]\033[0m","未找到 productNumber\n")
 
 def getTDToken():
-    global wmToken
-    wmToken = tools.getStringBetween(rewrite.indexJS, "getToken(", ",")
-    if wmToken:
-        wmToken = wmToken.strip().strip('\'"')
-        shell.shell.print("\033[32m[INFO]\033[0m","wmToken:",wmToken,"\n")
+    global wmID
+    wmID = tools.getStringBetween(rewrite.indexJS, "getToken(", ",")
+    if wmID:
+        wmID = wmID.strip().strip('\'"')
+        shell.shell.print("\033[32m[INFO]\033[0m","wmID:",wmID,"\n")
     else:
-        wmToken = ""
-        shell.shell.print("\033[31m[ERROR]\033[0m","未找到 wmToken\n")
+        wmID = ""
+        shell.shell.print("\033[31m[ERROR]\033[0m","未找到 wmID\n")
 
 def checkYDStatus():
-    if not productNumber or not wmToken:
-        shell.shell.print("\033[31m[ERROR]\033[0m","未找到 productNumber 或 wmToken")
+    if not productNumber or not wmID:
+        shell.shell.print("\033[31m[ERROR]\033[0m","未找到 productNumber 或 wmID")
     else:
-        shell.shell.print("\033[32m[INFO]\033[0m","productNumber 和 wmToken 检查成功，Next...")
-        window.evaluate_js(f"setYD('{productNumber}','{wmToken}');")
+        shell.shell.print("\033[32m[INFO]\033[0m","productNumber 和 wmID 检查成功，Next...")
+        window.evaluate_js(f"setYD('{productNumber}','{wmID}');")
 
         # 获取服务器列表, 并询问用户服务器ID
         serverID()
@@ -98,13 +98,18 @@ def serverID():
     返回服务器列表数据供前端使用
     """
     global _serverListCache
-    stype = input("请输入服务器类型; 1：官服(official)  2：渠道服(channel) ：")
+    stype = input("请输入服务器类型; 1：官服(official)  2：渠道服(channel) 其他数字：服务器id：")
     if stype == "1":
         stype = "official"
     elif stype == "2":
         stype = "channel"
     else:
-        print("输入错误")
+        print("设置服务器ID")
+        shell.shell.print("\033[32m[INFO]\033[0m","设置服务器ID")
+        global serverID
+        serverID = stype
+        return
+
     res = requests.get(f"https://gameserver.webcgi.163.com/game_servers_info?game=g66&type={stype}")
     if res.status_code == 200:
         serverData = json.loads(res.text)["servers"][0]["data"]
@@ -145,15 +150,21 @@ def awaitAnticheat():
     """
     等待 anticheat_status 为 True
     """
+    # 重置 anticheat_status 和 anticheat_token
+    global anticheat_status
+    global anticheat_token
+    anticheat_status = False
+    anticheat_token = ""
+
     window.evaluate_js(f"fetchWmAnticheat()")
     n = 0
     # 等待 anticheat_status 为 True
-    shell.shell.print("\033[32m[INFO]\033[0m","等待 anticheat_status 返回为 True")
+    shell.shell.print("\033[32m[INFO]\033[0m","等待 anticheat_status 返回")
     while not anticheat_status and n < 10:
         time.sleep(1)
         n += 1
     if n >= 10:
-        shell.shell.print("\033[31m[ERROR]\033[0m","等待 anticheat_status 返回为 True 超时")
+        shell.shell.print("\033[31m[ERROR]\033[0m","等待 anticheat_status 返回超时")
         return
     if not anticheat_token:
         shell.shell.print("\033[31m[ERROR]\033[0m","未找到 anticheat_token")
@@ -170,6 +181,7 @@ def check_QueryRole():
     """
     anticheat_token, anticheat_status = awaitAnticheat()
     if not anticheat_token or not anticheat_status:
+        shell.shell.print("\033[31m[ERROR]\033[0m","获取 anticheat_token 失败")
         return
     
     # 查询角色信息
@@ -183,6 +195,7 @@ def check_QueryRole():
         print("查询成功")
         global user_data
         user_data = json.loads(res.text)["data"][0]
+        print("role_id:",user_data["role_id"])
 
     else:
         shell.shell.print("\033[31m[ERROR]\033[0m","查询角色信息失败")
@@ -246,6 +259,8 @@ def exchange():
         else:
             shell.shell.print("\033[31m[ERROR]\033[0m", f"礼包码 {sn} 请求失败，状态码：{res.status_code}\n")
             fail_count += 1
+        
+        print(f"兑换{i}/{len(sn_list)}:{sn},{result.get('msg', '')}")
         
         # 添加延迟，避免请求过快
         time.sleep(5)
