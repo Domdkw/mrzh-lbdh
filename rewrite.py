@@ -1,8 +1,7 @@
 import requests
 import os
-import tempfile
+import time
 from bs4 import BeautifulSoup
-import re
 
 import shell
 import tools
@@ -10,7 +9,7 @@ import tools
 #获取源码
 original_html = ""
 rewritten_html = ""
-temp_file_path = ""
+temp_file_path = "./mrzh-lbdh_temp.html"
 
 indexJS_URL = ""
 js_e_idx = 0
@@ -74,8 +73,16 @@ def save_temp_html(html_content):
     Returns:
         str: 临时文件的绝对路径
     """
-    temp_dir = tempfile.gettempdir()
-    temp_file_path = os.path.join(temp_dir, 'mrzh_lbdh_temp.html')
+    global temp_file_path
+    
+    temp_file_path = os.path.join(os.path.dirname(__file__), temp_file_path)
+    
+    #检测当前路径是否包含文件
+    if os.path.isfile(temp_file_path):
+        shell.shell.print("临时文件已存在，检查日期>7 天")
+        if time.time() - os.path.getmtime(temp_file_path) <= 2592000:#30 天内
+            shell.shell.print("临时文件未过期，使用旧文件")
+            return temp_file_path
     
     with open(temp_file_path, 'w', encoding='utf-8') as f:
         f.write(html_content)
