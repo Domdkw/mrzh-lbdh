@@ -9,6 +9,11 @@ let productNumber = "";
 let wmID = "";
 let serverID = "";
 
+let currentToken = null;
+
+let wmAnticheatCount = 0;
+
+let isWmResetting = false;
 
 
 /**
@@ -153,19 +158,6 @@ function setYD(p,w){
     console.log("setYD",p,w);
 }
 
-let currentToken = null;
-
-/**
- * 获取wmID后重置watchman计数器，避免服务器风控
- */
-let wmAnticheatCount = 0;
-
-/**
- * wm重置状态标志
- * true: 正在重置中，禁止获取token
- * false: 正常状态
- */
-let isWmResetting = false;
 
 /**
  * 清除所有cookies
@@ -187,12 +179,78 @@ function clearAllCookies() {
 }
 
 /**
+ * 清除所有IndexedDB数据库
+ * @returns {Promise<void>}
+ */
+async function clearIndexedDB() {
+    try {
+        if (!window.indexedDB || !window.indexedDB.databases) {
+            sendLog("\x1b[33m[WARN]\x1b[0m [clearIndexedDB] IndexedDB API不可用");
+            return;
+        }
+        const dbs = await indexedDB.databases();
+        for (const db of dbs) {
+            if (db.name) {
+                await new Promise((resolve, reject) => {
+                    const request = indexedDB.deleteDatabase(db.name);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+            }
+        }
+        sendLog("\x1b[32m[INFO]\x1b[0m [clearIndexedDB] IndexedDB已清除");
+    } catch (e) {
+        sendLog("\x1b[33m[WARN]\x1b[0m [clearIndexedDB] 清除失败: " + e.message);
+    }
+}
+
+/**
+ * 清除Cache Storage
+ * @returns {Promise<void>}
+ */
+async function clearCacheStorage() {
+    try {
+        if (!window.caches) {
+            sendLog("\x1b[33m[WARN]\x1b[0m [clearCacheStorage] Cache API不可用");
+            return;
+        }
+        const cacheNames = await caches.keys();
+        for (const name of cacheNames) {
+            await caches.delete(name);
+        }
+        sendLog("\x1b[32m[INFO]\x1b[0m [clearCacheStorage] Cache Storage已清除");
+    } catch (e) {
+        sendLog("\x1b[33m[WARN]\x1b[0m [clearCacheStorage] 清除失败: " + e.message);
+    }
+}
+
+/**
+ * 清除Service Workers
+ * @returns {Promise<void>}
+ */
+async function clearServiceWorkers() {
+    try {
+        if (!navigator.serviceWorker) {
+            sendLog("\x1b[33m[WARN]\x1b[0m [clearServiceWorkers] Service Worker API不可用");
+            return;
+        }
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+            await reg.unregister();
+        }
+        sendLog("\x1b[32m[INFO]\x1b[0m [clearServiceWorkers] Service Workers已清除");
+    } catch (e) {
+        sendLog("\x1b[33m[WARN]\x1b[0m [clearServiceWorkers] 清除失败: " + e.message);
+    }
+}
+
+/**
  * 重置Watchman环境
- * 使用Promise封装异步操作，确保stop和start按顺序完成
+ * 增强版：清除更多存储数据，添加随机延迟，防止服务器风控
  * @returns {Promise<boolean>} 重置是否成功
  */
-function resetWmEnvironment() {
-    return new Promise((resolve) => {
+async function resetWmEnvironment() {
+    return new Promise(async (resolve) => {
         if (isWmResetting) {
             sendLog("\x1b[33m[WARN]\x1b[0m [resetWmEnvironment] 正在重置中，请稍候...");
             resolve(false);
@@ -216,9 +274,9 @@ function resetWmEnvironment() {
         wmAnticheatCount = 0;
         currentToken = null;
         
-        sendLog("\x1b[36m[INFO]\x1b[0m [resetWmEnvironment] 开始重置Watchman...");
+        sendLog("\x1b[36m[INFO]\x1b[0m [resetWmEnvironment] 开始增强重置Watchman...");
         
-        window.wm.stop(function() {
+        window.wm.stop(async function() {
             console.log("[resetWmEnvironment] wm stopped");
             sendLog("\x1b[32m[INFO]\x1b[0m [resetWmEnvironment] wm stopped");
             
@@ -227,6 +285,10 @@ function resetWmEnvironment() {
             sessionStorage.clear();
             sendLog("\x1b[32m[INFO]\x1b[0m [resetWmEnvironment] 已清除cookie,localStorage,sessionStorage");
             
+            await clearIndexedDB();
+            await clearCacheStorage();
+            await clearServiceWorkers();
+                        
             window.wm.start(function() {
                 console.log("[resetWmEnvironment] wm started");
                 sendLog("\x1b[32m[INFO]\x1b[0m [resetWmEnvironment] wm started");
@@ -255,6 +317,9 @@ async function fetchWmAnticheat() {
             sendLog("\x1b[31m[ERROR]\x1b[0m [fetchWmAnticheat] Watchman重置失败");
             return;
         }
+    }else{
+        console.log("wmAnticheatCount:",wmAnticheatCount);
+        sendLog("\x1b[32m[INFO]\x1b[0m [fetchWmAnticheat] wmAnticheatCount:" + wmAnticheatCount);
     }
     
     if (!window.wm) {

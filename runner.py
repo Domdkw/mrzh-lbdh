@@ -2,6 +2,7 @@ import requests
 import json
 import time
 from bs4 import BeautifulSoup
+import os
 
 import shell
 import rewrite
@@ -45,6 +46,7 @@ class Api:
 
 
 
+
 wmID = ""
 productNumber = ""
 def getYDProductNumber():
@@ -74,11 +76,16 @@ def checkYDStatus():
         shell.shell.print("\033[32m[INFO]\033[0m","productNumber 和 wmID 检查成功，Next...")
         window.evaluate_js(f"setYD('{productNumber}','{wmID}');")
 
-        # 获取服务器列表, 并询问用户服务器ID
-        serverID()
-        # 询问用户用户ID
-        askUser()
-        shell.shell.print("\033[32m[INFO]\033[0m","用户ID:",user,"\n")
+        # 从 userinfo.json 中读取用户信息
+        conf_status = getUserInfo()
+        if not conf_status:
+            # 获取服务器列表, 并询问用户服务器ID
+            serverID()
+            # 询问用户用户ID
+            askUser()
+            shell.shell.print("\033[32m[INFO]\033[0m","用户ID:",user,"\n")
+
+            askSetUserInfo()
 
         # 查询角色信息
         check_QueryRole()
@@ -146,6 +153,45 @@ def askUser():
     user = input("请输入用户ID：")
     shell.shell.print("\033[32m[INFO]\033[0m","用户ID:", user,"\n")
 
+def getUserInfo():
+    """
+    从 userinfo.json 中读取用户信息
+    """
+    if not os.path.exists("userinfo.json"):
+        shell.shell.print("\033[31m[INFO]\033[0m","未找到 userinfo.json 文件")
+        return False
+    with open("userinfo.json", "r") as f:
+        data = json.load(f)
+        global user
+        user = data["userid"]
+        global serverID
+        serverID = data["serverid"]
+        shell.shell.print("\033[32m[INFO]\033[0m","用户信息:", data,"\n")
+        print("用户ID:",user)
+        print("服务器ID:",serverID)
+        return True
+
+def askSetUserInfo():
+    """
+    保存用户信息到 userinfo.json
+    """
+    s = input("是否保存用户信息到 userinfo.json？(y/n)(空=取消)：")
+    if s != "y":
+        shell.shell.print("\033[32m[INFO]\033[0m","用户选择不保存用户信息到 userinfo.json")
+        return
+    if not user or not serverID:
+        shell.shell.print("\033[31m[ERROR]\033[0m","用户ID 或服务器ID 为空")
+        return
+    if os.path.exists("userinfo.json"):
+        shell.shell.print("\033[32m[INFO]\033[0m","userinfo.json 文件已存在，覆盖")
+    else:
+        shell.shell.print("\033[32m[INFO]\033[0m","userinfo.json 文件不存在，创建")
+    
+    with open("userinfo.json", "w") as f:
+        data = {"userid": user, "serverid": serverID}
+        json.dump(data, f, indent=4)  
+
+
 def awaitAnticheat():
     """
     等待 anticheat_status 为 True
@@ -165,14 +211,13 @@ def awaitAnticheat():
         n += 1
     if n >= 10:
         shell.shell.print("\033[31m[ERROR]\033[0m","等待 anticheat_status 返回超时")
-        return
+        return None, None
     if not anticheat_token:
         shell.shell.print("\033[31m[ERROR]\033[0m","未找到 anticheat_token")
-        return
+        return None, None
     shell.shell.print("\033[32m[INFO]\033[0m 花费", n, "秒")
 
     return anticheat_token, anticheat_status
-
 
 def check_QueryRole():
     """

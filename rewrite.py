@@ -79,11 +79,15 @@ def save_temp_html(html_content):
     
     #检测当前路径是否包含文件
     if os.path.isfile(temp_file_path):
-        shell.shell.print("临时文件已存在，检查日期>7 天")
+        shell.shell.print("临时文件：检查日期")
         if time.time() - os.path.getmtime(temp_file_path) <= 2592000:#30 天内
-            shell.shell.print("临时文件未过期，使用旧文件")
-            return temp_file_path
-    
+            # 检查文件内容是否相同
+            with open(temp_file_path, 'r', encoding='utf-8') as f:
+                old_content = f.read()
+            if old_content == html_content:
+                shell.shell.print("未过期")
+                return temp_file_path
+
     with open(temp_file_path, 'w', encoding='utf-8') as f:
         f.write(html_content)
     
